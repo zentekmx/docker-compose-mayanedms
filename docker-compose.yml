@@ -1,0 +1,50 @@
+version: '3'
+
+services:
+  redis:
+    image: healthcheck/redis
+    volumes:
+      - ${REDIS_VOLUME:-redis-volume}:/data
+
+  rabbitmq:
+    image: healthcheck/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST}
+    volumes:
+      - ${RABBITMQ_VOLUME:-rabbitmq-volume}:/var/lib/rabbitmq
+
+  postgres:
+    image: healthcheck/postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+    volumes:
+      - ${POSTGRES_VOLUME:-postgres-volume}:/var/lib/postgresql/data
+
+  mayan-edms:
+    image: mayanedms/mayanedms:latest
+    depends_on:
+      - redis
+      - rabbitmq
+      - postgres
+    environment:
+      MAYAN_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/${RABBITMQ_DEFAULT_VHOST}
+      MAYAN_CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MAYAN_DATABASE_ENGINE: django.db.backends.postgresql
+      MAYAN_DATABASE_HOST: postgres
+      MAYAN_DATABASE_NAME: ${POSTGRES_DB}
+      MAYAN_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      MAYAN_DATABASE_USER: ${POSTGRES_USER}
+    ports:
+      - "80:8000"
+    volumes:
+      - ${MAYAN_VOLUME:-mayan-volume}:/var/lib/mayan
+
+volumes:
+  redis-volume:
+  postgres-volume:
+  mayan-volume:
+
